@@ -4,7 +4,7 @@ Just jump in with any questions as we're going - it's hard to pitch technical co
 
 What is Albion?
 
-Albion is an internal tool developed within research at CSE. You can find at albion.r.cse.org.uk (need to be on VPN or in the office).
+Albion is an internal tool developed within research at CSE. You can find it at http://albion.r.cse.org.uk (need to be on VPN or in the office).
 It brings together datasets about households, addresses and buildings in the UK, processes them to be easier to use (cleaning up free text fields and so on, address-matching), and combines them together.
 
 On top of this, several models have been made that use the Albion datasets to do things like:
@@ -210,7 +210,7 @@ How to avoid this?
 * Whoever made the database will often have specified some columns as primary keys. A primary key is a unique identifier of a database row. So that's always safe to join on.
 * postgres (which is the SQL database Albion uses) has the DISTINCT ON keyword. (I won't cover this now)
 
-### things I haven't covered
+## SQL features I haven't covered
 
 * types of join - e.g. the difference between `LEFT JOIN` and `INNER JOIN`
 * subqueries
