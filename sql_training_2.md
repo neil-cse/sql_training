@@ -1,54 +1,6 @@
-# Albion
+# SQL Training
 
-Just jump in with any questions as we're going - it's hard to pitch technical content at exactly the right level for the audience, so let me know if I'm assuming you know something that you don't.
-
-What is Albion?
-
-Albion is an internal tool developed within research at CSE. You can find it at http://albion.r.cse.org.uk (need to be on VPN or in the office).
-It brings together datasets about households, addresses and buildings in the UK, processes them to be easier to use (cleaning up free text fields and so on, address-matching), and combines them together.
-
-On top of this, several models have been made that use the Albion datasets to do things like:
-* predict the solar PV potential of rooftops
-* predict heat demand for buildings
-* predict how easy it will be to dig up a road
-
-So there are 2 mains ways you can use Albion: running models, and extracting data. You can also combine the two.
-
-My plan for today is to:
-* first run through how to use the models; 
-* then through the different datasets that are available in Albion; 
-* and then look at some SQL. You do need to have a bit of SQL knowledge to make the most of the data, though not for just running the models. But even then, knowing some SQL would all you to combine the model outputs with some of the datasets, which could be useful.
-
-## Albion models
-
-***go through models***
-
-http://albion.r.cse.org.uk/run-jobs
-
-## Albion datasets
-
-To make use of the datasets and the processing that's been done on them, you really need some SQL knowledge. I'll go through all the datasets available first, though.
-
-Some examples of datasets:
-* OS MasterMap - footprint shape and height of all buildings in the UK, layout of road network
-* OS AddressBase - all addresses in the UK
-* EPCs - heating systems and fuel types, recommended insulation, energy efficiency, floor area ...
-* Experian - facts about households (age of house, number of people, number of children, tenure type ...)
-* Experian Mosaic - market segmentation of households
-* average electricity and gas usage at postcode/LSOA/MSOA level
-* if a building is grade I/II listed
-* presence of PV
-* OA/LSOA/MSOA/LA/ward/parish of all addresses
-
-***go through datasets***
-
-http://albion.r.cse.org.uk/data-dictionary
-
-# SQL
-
-Structured Query Language
-
-A very old programming language
+The last session was a while ago and we only spent a few minutes at the end looking at SQL, so I'm not going to assume any SQL knowledge.
 
 SQL is generally used to interact with a database containing tables of data.
 
@@ -58,7 +10,7 @@ We will focus on reading, filtering and transforming data rather than creating o
 
 We'll use the Albion database as a source of example data. You can go to http://albion.r.cse.org.uk/pgweb/ to follow along.
 
-pgweb is a good tool for exploring the data, but please don't use it for enormous queries or data extracts - there's a different tool for that, which I'll show later.
+pgweb is a good tool for exploring the data, but please don't use it for enormous queries or data extracts - you can use the 'extract results' page from Albion that we looked at last time - it will queue up requests so the server doesn't get overwhelmed and email you when they're ready to download.
 
 ## A basic command
 
@@ -90,7 +42,6 @@ SELECT uprn, postcode, heating_fuel FROM aggregates.household LIMIT 150;
 
 ## filtering results using 'WHERE'
 
-
 ```sql
 SELECT uprn, postcode, heating_fuel, tenure_type 
 FROM aggregates.household 
@@ -117,13 +68,72 @@ FROM aggregates.household
 WHERE postcode IN ('ME7 1SX', 'ME7 2RL', 'ME7 2AL');
 ```
 
-### indexes
+### SQL syntax
 
-The reason these queries are fast, even with over 20 million rows to look through, is because there's an index on the column `lsoa_2011`. This means the database doesn't need to look through all the rows; it just consults the index to find all of the rows with the specified LSOA.
+A few notes about SQL syntax:
 
-You can still filter on columns without an index, but on big tables (which is most of them in Albion), it'll be slow - maybe about 5 minutes.
+This is invalid:
 
-How to find out if a column has an index? http://albion.r.cse.org.uk/data-dictionary . Also possible to see in pgweb.
+```sql
+SELECT uprn, postcode, heating_fuel, tenure_type 
+FROM aggregates.household 
+WHERE lsoa_2011 = 'E01016033'
+WHERE epc_band = 'C';
+```
+
+Why? Because SQL is annoying. It needs to be written like this:
+
+```sql
+SELECT uprn, postcode, heating_fuel, tenure_type 
+FROM aggregates.household 
+WHERE lsoa_2011 = 'E01016033' AND epc_band = 'C';
+```
+
+You can only have each of these clauses once. There are a few clauses you can repeat (mostly JOINs), but for the most part you can't.
+
+This is invalid:
+
+```sql
+SELECT uprn, postcode, heating_fuel, tenure_type 
+FROM aggregates.household 
+LIMIT 100
+WHERE lsoa_2011 = 'E01016033';
+```
+
+Why? Because SQL is annoying. It cares about the order of the clauses. The `LIMIT` has to be after the `WHERE`.
+
+The error message won't help you out much, though... (show them the error message: `ERROR:  syntax error at or near "where"`)
+
+This won't work:
+
+```sql
+SELECT uprn, postcode, heating_fuel, tenure_type 
+FROM aggregates.household 
+WHERE lsoa_2011 = "E01016033";
+```
+
+Why? at least in the dialect of SQL that the Albion database uses, double-quotes are reserved for quoting column or table names, which you might need to do if you somehow end up with a column or table name which isn't just made of lowercase characters/numbers and underscores. Single-quotes are for strings.
+
+Also watch out for: missing commas, too many commas (show these)
+
+You don't need to capitalise the clause names - sql is mostly case-insensitive, though how much that's true for things like table and column names varies by database. It's a fairly common style to capitalise the clause names, though, and can make it easier to read the query. For longer queries I also tend to put each clause on its own line.
+
+### null
+
+`NULL` in SQL can be a bit tricky. This query won't work:
+
+```sql
+SELECT uprn, postcode, heating_fuel, tenure_type, organisation_name 
+FROM aggregates.household 
+WHERE lsoa_2011 = 'E01016033' and organisation_name = null
+LIMIT 100;
+```
+
+And neither will it's opposite (`organisation_name != null`). In theory, NULLs represent unknown values, and so they don't play nicely with other things. They don't even play nicely with each other:
+
+Examples: `SELECT null = null;` `SELECT null != null;` `SELECT 1 != null`
+
+What you can do instead is use `IS` and `IS NOT`: `organisation_name IS NOT null`
 
 ## ordering
 
@@ -137,6 +147,8 @@ ORDER BY postcode DESC;
 ```
 
 `ORDER BY` specified which column (or columns) to order by. `ASC` or `DESC` specifies if it should be ascending or descending. Ascending is the default (a-z/0-9 rather than 9-0/z-a)
+
+If you had a `LIMIT` clause too, it would go after the `ORDER BY`.
 
 ## groups and aggregating
 
@@ -178,7 +190,13 @@ GROUP BY tenure_type, heating_fuel
 ORDER BY tenure_type;
 ```
 
+What it won't let you do is SELECT a column which is not in the `GROUP BY` clause and doesn't have an aggregate function applied to it. Even if you the human knows that column `b` will always have the same value when you group by column `a`, the poor computer doesn't.
+
+If you do need to do this, a way round it is just to use `MAX` or `MIN`.
+
 ## combining tables with 'JOIN'
+
+The last major keyword to cover is `JOIN`
 
 The JOIN keyword is how you combine data from multiple tables.
 
@@ -202,33 +220,44 @@ There's a few new things here.
 
 Generally when joining, you will join `ON` the unique identifier of at least one of the tables. Here I'm using the UPRN, which is an AddressBase thing, and there's one for every address in the country.
 
-Something to watch out for with joins:
-* What happens if multiple AddressBase addresses have the same UPRN? (they don't) - you would get a row per duplicate, so you'd get some duplicate households.
-* What happens if multiple Experian households and multiple AddressBase addresses have the same UPRN? - you'd get a row per duplicate household for each row per duplicate address. (this is called a join explosion, because if there are lots of duplicates on both sides you can end up with enormous numbers of rows)
+### JOIN gotchas
 
-How to avoid this?
-* Whoever made the database will often have specified some columns as primary keys. A primary key is a unique identifier of a database row. So that's always safe to join on.
+Without the aliases it won't work, as both tables have a column called UPRN.:
+
+```sql
+SELECT uprn, tenure_type, classification_code, full_class_desc
+FROM
+    experian.household
+    LEFT JOIN addressbase.address ON uprn = uprn
+LIMIT 100
+```
+
+If multiple AddressBase addresses had the same UPRN (they don't) - you would get a row per duplicate, so you'd get some duplicate households. This can be OK but depends on your purposes.
+
+If multiple Experian households and multiple AddressBase addresses have the same UPRN - you'd get a row per duplicate household for each row per duplicate address. (this is called a join explosion, because if there are lots of duplicates on both sides you can end up with enormous numbers of rows). This is rarely OK and can make things a) take ages and b) produce far too many rows
+
+How to avoid these problems?
+* Whoever made the database will should have specified some columns as unique or as primary keys. A primary key is a unique identifier of a database row. So that's always safe to join on. (show in data dictionary)
 * postgres (which is the SQL database Albion uses) has the DISTINCT ON keyword. (I won't cover this now)
+
+### Types of JOIN
+
+We looked at `LEFT JOIN` above - what this means is that all the rows from the left-hand table will be included in the results, even if they don't match anything in the right-hand table.
+
+You can also do an `INNER JOIN`: this only includes rows in the results if there's a match.
+
+You can also do `RIGHT JOIN` and `FULL OUTER JOIN` but those aren't often needed, in practice.
+
+If you want one of each row in the right-hand table for each row in the left, which is called the cross product, you can just put both tables in the `FROM` clause: `SELECT * FROM a, b`. This will produce a lot of results if your tables are even moderately large!
+
+## Using SQL with non-Albion data
+
+If you're working with large spreadsheets or CSVs in R, especially if you're transforming the data in time-consuming ways, you can save the results of intermediate steps to a local sqlite database
 
 ## SQL features I haven't covered
 
-* types of join - e.g. the difference between `LEFT JOIN` and `INNER JOIN`
 * subqueries
 * windows
 * functions
+* working with spatial data using postGIS or spatialite
 * lots more
-
-## painful things
-
-* SQL error messages are not very good and often don't indicate precisely where the mistake in the query is. So if it's telling you that the query is wrong, but the position it's indicating seems fine, look closely at the bits before and after the position it tells you.
-* SQL doesn't allow trailing commas in lists - `SELECT a,b,c, FROM blah` will fail due to the comma after the c.
-* in my experience, it takes a while to learn how to express what you want in SQL for anything more complicated than what we've covered.
-* combining the different keywords isn't always straightforward. How would you join 2 tables, but perform a grouping on one of them before joining?
-
-## results extractor
-
-Now you've got your query, how do you actually get any data out?
-
-***show results extractor***
-
-http://albion.r.cse.org.uk/extract-results
