@@ -72,6 +72,8 @@ WHERE postcode IN ('ME7 1SX', 'ME7 2RL', 'ME7 2AL');
 
 A few notes about SQL syntax:
 
+As SQL beginners you will proably find yourself fighting the syntax quite a lot
+
 This is invalid:
 
 ```sql
@@ -249,10 +251,6 @@ You can also do an `INNER JOIN`: this only includes rows in the results if there
 You can also do `RIGHT JOIN` and `FULL OUTER JOIN` but those aren't often needed, in practice.
 
 If you want one of each row in the right-hand table for each row in the left, which is called the cross product, you can just put both tables in the `FROM` clause: `SELECT * FROM a, b`. This will produce a lot of results if your tables are even moderately large!
-
-## Using SQL with non-Albion data
-
-If you're working with large spreadsheets or CSVs in R, especially if you're transforming the data in time-consuming ways, you can save the results of intermediate steps to a local sqlite database
 
 ## SQL features I haven't covered
 
